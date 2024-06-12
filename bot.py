@@ -8,7 +8,7 @@ import time
 import asyncio
 import random
 import string
-from sever import keep_alive
+from keep_alive import keep_alive
 conversation_history = []
 
 def show_history(conversation_history, max_messages=None):
