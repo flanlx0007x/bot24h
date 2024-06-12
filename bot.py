@@ -8,6 +8,7 @@ import time
 import asyncio
 import random
 import string
+from sever import keep_alive
 conversation_history = []
 
 def show_history(conversation_history, max_messages=None):
@@ -315,5 +316,5 @@ def is_math_question(question):
 
 def eval_expression(expression):
     return eval(expression)
-
+keep_alive()
 client.run(Token)
