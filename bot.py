@@ -8,8 +8,6 @@ import time
 import asyncio
 import random
 import string
-from sever import keep_alive
-
 conversation_history = []
 
 def show_history(conversation_history, max_messages=None):
@@ -153,10 +151,10 @@ async def on_message(message):
                     embed.add_field(name="Developer", value="<@862571604751810602>", inline=False)
 
                     await response_message.edit(embed=embed)
-                    embed.add_field(name="Status", value="✅", inline=False)
+                    embed.add_field(name="Status", value="🟢", inline=False)
                     await asyncio.sleep(0.5)
                     await response_message.edit(embed=embed)
-                    embed.add_field(name="Online24/7", value="❌", inline=False)
+                    embed.add_field(name="Online24/7", value="🟢", inline=False)
                     await asyncio.sleep(0.5)
                     await response_message.edit(embed=embed)
                     embed.add_field(name="Status Developer", value="ขก.ทำต่อละโว้ย / Too lazy to continue developing", inline=False)
@@ -317,6 +315,5 @@ def is_math_question(question):
 
 def eval_expression(expression):
     return eval(expression)
-keep_alive()
 
-client.run(os.getenv('Token'))
+client.run(Token)
