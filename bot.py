@@ -43,7 +43,6 @@ statuses = [
   "เบื่อหว่าา",
   "ขก.ทำต่อละ",
   "อยากกลับบ้าน",
-  "How to ลาออกดิสพี่กล้วย",
   "ไม่อยากไปทำงาน",
   "กินไรดีน้า",
   "ติวไม่ทันแล้ว",
@@ -172,7 +171,7 @@ async def on_message(message):
                     embed.add_field(name="", value="Gender: Boy", inline=False) 
                     await asyncio.sleep(0.5)
                     await response_message.edit(embed=embed)
-                    embed.add_field(name="Discord", value="https://discord.gg/J3t92TM3wJ", inline=False)
+                    embed.add_field(name="Discord", value="https://discord.gg/HN7Szyw8", inline=False)
                     await asyncio.sleep(0.5)
                     await response_message.edit(embed=embed)
                     member_count = len(guild.members)
