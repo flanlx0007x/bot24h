@@ -1,14 +1,11 @@
 import discord
 from discord.ext import commands, tasks
-import google.generativeai as genai
 import os
-import math
 import json
-import time 
 import asyncio
 import random
 import string
-
+import google.generativeai as genai
 
 conversation_history = []
 
@@ -191,7 +188,7 @@ async def on_message(message):
         question = message.content.strip()
         conversation_history = []
 
-        if is_math_question(question):
+        if is_math_question(question) and question.strip().isdigit():
             try:
                 result = eval_expression(question)
                 await message.reply(f"ผลลัพธ์ของ {question} คือ {result}")
@@ -223,7 +220,7 @@ async def on_message(message):
 
                     if response:
                         if len(response) > 2000:
-                            file_name = f'ข้อความ-bot.txt'
+                            file_name = f"response_{message.author.id}.txt"
                             with open(file_name, 'w', encoding='utf-8') as file:
                                 file.write(response)
                             with open(file_name, 'rb') as file:
@@ -239,6 +236,17 @@ async def on_message(message):
 
     await client.process_commands(message)
 
+def is_math_question(question):
+    math_operators = ['+', '-', '*', '/', '**', '//', '%']
+    words = question.split()
+    return all(any(op in word for op in math_operators) for word in words)
+
+def eval_expression(expression):
+    try:
+        return eval(expression)
+    except Exception as e:
+        return f"Error: {e}"
+
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 if not GOOGLE_API_KEY:
     raise ValueError('Please set the GOOGLE_API_KEY environment variable')
@@ -252,6 +260,7 @@ generation_config = {
   "max_output_tokens": 8192,
   "response_mime_type": "text/plain",
 }
+
 safety_settings = [
   {
     "category": "HARM_CATEGORY_HARASSMENT",
@@ -273,9 +282,10 @@ safety_settings = [
 
 async def get_gemini_response(question, conversation_history):
     try:
-        model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest",
-        generation_config=generation_config,
-        safety_settings=safety_settings
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-pro-latest",
+            generation_config=generation_config,
+            safety_settings=safety_settings
         )
         convo = model.start_chat(history=conversation_history)
         user_message = question
@@ -287,11 +297,5 @@ async def get_gemini_response(question, conversation_history):
         print(f"Error in get_gemini_response: {e}")
         return None
 
-def is_math_question(question):
-    math_operators = ['+', '-', '*', '/', '**','//','%']
-    return any(op in question for op in math_operators)
-
-def eval_expression(expression):
-    return eval(expression)
 
 client.run(Token)
