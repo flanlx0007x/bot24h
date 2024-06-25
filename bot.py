@@ -6,7 +6,7 @@ import asyncio
 import random
 import string
 import google.generativeai as genai
-
+from sever import keep_alive
 conversation_history = []
 
 def show_history(conversation_history, max_messages=None):
@@ -312,5 +312,5 @@ async def get_gemini_response(question, conversation_history):
         print(f"Error in get_gemini_response: {e}")
         return None
 
-
+keep_alive()
 client.run(Token)
