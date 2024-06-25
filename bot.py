@@ -243,13 +243,12 @@ async def on_message(message):
                         else:
                             await message.reply(response)
 
-                await typing_message.delete()
+                await typing_message.edit(content=response)
                 break
         except Exception as e:
             print(f"Error in chatbot room: {e}")
             await message.channel.send("เกิดข้อผิดพลาดในระบบของเรา. กรุณาลองใหม่อีกครั้ง.")
 
-    await client.process_commands(message)
 
 def is_math_question(question):
     math_operators = ['+', '-', '*', '/', '**', '//', '%']
