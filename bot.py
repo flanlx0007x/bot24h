@@ -241,7 +241,6 @@ async def on_message(message):
                             with open(file_name, 'rb') as file:
                                 await message.reply("ข้อความยาวเกินไป. ส่งไฟล์แทน.", file=discord.File(file, file_name))
                         else:
-                            await message.reply(response)
 
                 await typing_message.edit(content=response)
                 break
