@@ -214,7 +214,7 @@ async def on_message(message):
         try:
             typing_message = await message.reply("กำลังพิม")
 
-            while True:
+            for _ in range(3):
                 await typing_message.edit(content="กำลังพิม.")
                 await asyncio.sleep(0.25)
 
@@ -224,26 +224,25 @@ async def on_message(message):
                 await typing_message.edit(content="กำลังพิม...")
                 await asyncio.sleep(0.25)
 
-                response = await get_gemini_response(question, conversation_history)
+            response = await get_gemini_response(question, conversation_history)
 
-                if response is not None:
-                    response = response.replace('Gemini', 'kit')
-                    response = response.replace('Google', 'DEV')
-                    response = response.replace('ฉัน', 'ผม')
-                    response = response.replace('ค่ะ', 'ครับ')
-                    response = response.replace('คะ', 'ครับ')
+            if response is not None:
+                response = response.replace('Gemini', 'kit')
+                response = response.replace('Google', 'DEV')
+                response = response.replace('ฉัน', 'ผม')
+                response = response.replace('ค่ะ', 'ครับ')
+                response = response.replace('คะ', 'ครับ')
 
-                    if response:
-                        if len(response) > 2000:
-                            file_name = f"response_{message.author.id}.txt"
-                            with open(file_name, 'w', encoding='utf-8') as file:
-                                file.write(response)
-                            with open(file_name, 'rb') as file:
-                                await message.reply("ข้อความยาวเกินไป. ส่งไฟล์แทน.", file=discord.File(file, file_name))
-                        else:
+                if response:
+                    if len(response) > 2000:
+                        file_name = f"response_{message.author.id}.txt"
+                        with open(file_name, 'w', encoding='utf-8') as file:
+                            file.write(response)
+                        with open(file_name, 'rb') as file:
+                            await message.reply("ข้อความยาวเกินไป. ส่งไฟล์แทน.", file=discord.File(file, file_name))
+                    else:
+                        await typing_message.edit(content=response)
 
-                await typing_message.edit(content=response)
-                break
         except Exception as e:
             print(f"Error in chatbot room: {e}")
             await message.channel.send("เกิดข้อผิดพลาดในระบบของเรา. กรุณาลองใหม่อีกครั้ง.")
