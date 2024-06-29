@@ -142,7 +142,7 @@ async def on_message(message):
             embed.add_field(name="Online24/7", value="🟢", inline=False)
             await asyncio.sleep(0.5)
             await response_message.edit(embed=embed)
-            embed.add_field(name="Image processing", value="🔴", inline=False)
+            embed.add_field(name="Image processing", value="🟢", inline=False)
             await asyncio.sleep(0.5)
             await response_message.edit(embed=embed)
             embed.add_field(name="Process PDF files or others", value="🔴", inline=False)
