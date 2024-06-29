@@ -9,7 +9,7 @@ import string
 from PIL import Image
 from discord.ext import commands, tasks
 import google.generativeai as genai
-from sever import keep_alive
+from server import keep_alive
 
 # Configure API key
 genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
@@ -178,11 +178,16 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if message.content.startswith('!ask'):
-        question = message.content[len('!ask'):].strip()
-        img_url = message.attachments[0].url if message.attachments else None
+    # Check if the message is in the specified chatbot room
+    chatbot_room_id = str(message.guild.id)
+    if chatbot_room_id in chatbot_rooms and message.channel.id == int(chatbot_rooms[chatbot_room_id]):
+        question = message.content.strip()
+        conversation_history = []
 
+        # Check for attachments (images)
+        img_url = message.attachments[0].url if message.attachments else None
         temp_image_path = "temp_image.jpg"
+
         if img_url and download_image(img_url, temp_image_path):
             # Process image with AI model
             processed_response = await process_image(question, temp_image_path, conversation_history)
@@ -194,119 +199,86 @@ async def on_message(message):
             # Clean up: Delete temporary image
             os.remove(temp_image_path)
         else:
-            await message.channel.send(f"Failed to download image from {img_url}")
+            if is_math_question(question) and question.strip().isdigit():
+                try:
+                    result = eval_expression(question)
+                    await message.reply(f"ผลลัพธ์ของ {question} คือ {result}")
+                except Exception as e:
+                    await message.reply(f"เกิดข้อผิดพลาดในการคำนวณ: {e}")
+            else:
+                try:
+                    typing_message = await message.reply("กำลังพิม")
 
-    elif message.content.startswith('!Gen'):
+                    for _ in range(3):
+                        await typing_message.edit(content="กำลังพิม.")
+                        await asyncio.sleep(0.25)
+                        await typing_message.edit(content="กำลังพิม..")
+                        await asyncio.sleep(0.25)
+                        await typing_message.edit(content="กำลังพิม...")
+                        await asyncio.sleep(0.25)
+
+                    response = await get_gemini_response(question, conversation_history)
+
+                    if response is not None:
+                        response = response.replace('Gemini', 'kit')
+                        response = response.replace('Google', 'DEV')
+                        response = response.replace('ฉัน', 'ผม')
+                        response = response.replace('ค่ะ', 'ครับ')
+                        response = response.replace('คะ', 'ครับ')
+
+                        if response:
+                            if len(response) > 2000:
+                                file_name = f"response_{message.author.id}.txt"
+                                with open(file_name, 'w', encoding='utf-8') as file:
+                                    file.write(response)
+                                with open(file_name, 'rb') as file:
+                                    await message.reply("ข้อความยาวเกินไป. ส่งไฟล์แทน.", file=discord.File(file, file_name))
+                            else:
+                                await typing_message.edit(content=response)
+
+                except Exception as e:
+                    print(f"Error in chatbot room: {e}")
+                    await message.channel.send("เกิดข้อผิดพลาดในระบบของเรา. กรุณาลองใหม่อีกครั้ง.")
+        return
+
+    if message.content.startswith('!Gen'):
         try:
             _, count_str = message.content.split(maxsplit=1)
             count = int(count_str)
         except ValueError:
-            await message.channel.send("Usage: !Gen <number>")
+            await message.channel.send("กรุณาใส่จำนวนที่ถูกต้องหลังคำสั่ง !Gen")
             return
 
-        if count <= 0:
-            await message.channel.send("Please specify a positive number.")
+        if count < 1 or count > 20:
+            await message.channel.send("กรุณาใส่จำนวนตั้งแต่ 1 ถึง 20")
             return
 
-        urls = []
-        for _ in range(count):
-            random_string = generate_random_string(32)
-            new_url = f"https://gift.truemoney.com/campaign/?v={random_string}"
-            urls.append(new_url)
+        await message.channel.send("กำลังสร้าง...")
 
-        embed = discord.Embed(title=f"Generated อังเปา(มันแค่สุ่ม) {count} URLs", color=discord.Color.green())
+        embed = discord.Embed(title="Status Embed", description="สถานะของบอท", color=discord.Color.blue())
+        embed.add_field(name="Version", value="1.0.0", inline=False)
+        embed.add_field(name="Status", value="🟢", inline=False)
+        embed.add_field(name="work", value="🟢", inline=False)
+        embed.add_field(name="fix/creating", value="🟡", inline=False)
+        embed.add_field(name="Not working", value="🔴", inline=False)
+        embed.add_field(name="Online24/7", value="🟢", inline=False)
+        embed.add_field(name="Image processing", value="🟢", inline=False)
+        embed.add_field(name="Process PDF files or others", value="🔴", inline=False)
+        embed.add_field(name="Status Developer", value="ขก.ทำต่อละโว้ย / Too lazy to continue developing", inline=False)
+        embed.add_field(name="About the Developer", value="Name: Frank", inline=False)
+        embed.add_field(name="", value="Age: 14", inline=False)
+        embed.add_field(name="", value="Gender: Boy", inline=False)
+        embed.add_field(name="Discord", value="https://discord.gg/HN7Szyw8", inline=False)
 
-        for index, url in enumerate(urls):
-            embed.add_field(name=f"ลิงค์อังเปา {index + 1}", value=url, inline=False)
+        member_count = len(message.guild.members)
+        channel_count = len(message.guild.channels)
+        embed.add_field(name=f"{message.guild.name}", value=f"Member Count: {member_count}", inline=False)
+        embed.add_field(name=f"{message.guild.name}", value=f"Channel Count: {channel_count}", inline=False)
+        bot_ping = round(client.latency * 1000) 
+        embed.add_field(name="Bot Ping", value=f"{bot_ping} ms", inline=False)
 
-        try:
-            await message.author.send(embed=embed)
-            await message.reply(f"Successfully generated {count} URLs and sent them to your DMs.", mention_author=False)
-            return
-        except discord.errors.Forbidden:
-            await message.reply("I couldn't send you a DM. Please make sure you allow DMs from server members.", mention_author=False)
-            return
-
-    elif message.content.startswith('Clear_history'):
-        conversation_history = []
-        await message.reply("ได้ทำการล้างประวัติการสอบถามและตอบกลับแล้ว:✅")
+        await message.channel.send(embed=embed)
         return
-
-    elif message.content.startswith('Show_history'):
-        full_history_text = show_history(conversation_history)
-        await message.channel.send(full_history_text)
-        return  
-
-    elif message.content.startswith('status'):
-        if isinstance(message.channel, discord.TextChannel) and isinstance(message.guild, discord.Guild):
-            guild = message.guild
-
-            embed = discord.Embed(
-                title="Status",
-                description="",
-                color=discord.Color.green()
-            )
-
-            embed.set_image(url="https://i.gifer.com/7eg0.gif")
-
-            response_message = await message.reply(embed=embed)
-            await asyncio.sleep(3.5)
-            embed.set_image(url="")
-            embed.add_field(name="Bot Version", value="1.5.0-beta", inline=False)
-            await response_message.edit(embed=embed)
-            await asyncio.sleep(0.5)
-            embed.add_field(name="Developer", value="<@862571604751810602>", inline=False)
-            await response_message.edit(embed=embed)
-            embed.add_field(name="Status", value="🟢", inline=False)
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            embed.add_field(name="work", value="🟢", inline=False)
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            embed.add_field(name="fix/creating", value="🟡", inline=False)
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            embed.add_field(name="Not working", value="🔴", inline=False)
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            embed.add_field(name="Online24/7", value="🟢", inline=False)
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            embed.add_field(name="Image processing", value="🟢", inline=False)
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            embed.add_field(name="Process PDF files or others", value="🔴", inline=False)
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            embed.add_field(name="Status Developer", value="ขก.ทำต่อละโว้ย / Too lazy to continue developing", inline=False)
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            embed.add_field(name="About the Developer", value="Name: Frank", inline=False)
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            embed.add_field(name="", value="Age: 14", inline=False)
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            embed.add_field(name="", value="Gender: Boy", inline=False)
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            embed.add_field(name="Discord", value="https://discord.gg/HN7Szyw8", inline=False)
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            member_count = len(guild.members)
-            channel_count = len(guild.channels)
-            await asyncio.sleep(0.5)
-            embed.add_field(name=f"{guild.name}", value=f"Member Count: {member_count}", inline=False)
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            embed.add_field(name=f"{guild.name}", value=f"Channel Count: {channel_count}", inline=False)
-            bot_ping = round(client.latency * 1000) 
-
-            await asyncio.sleep(0.5)
-            await response_message.edit(embed=embed)
-            embed.add_field(name="Bot Ping", value=f"{bot_ping} ms", inline=False)
-            await response_message.edit(embed=embed)
-            return
 
     elif message.content.startswith('!set_chat'):
         if os.path.exists('chatbot_rooms.json'):
@@ -325,53 +297,6 @@ async def on_message(message):
         await message.channel.send(f'บอทได้กำหนดให้ตอบกลับในห้องนี้เท่านั้น: {message.channel.mention}')
         return
 
-    chatbot_room_id = str(message.guild.id)
-    if chatbot_room_id in chatbot_rooms and message.channel.id == int(chatbot_rooms[chatbot_room_id]):
-        question = message.content.strip()
-        conversation_history = []
-
-        if is_math_question(question) and question.strip().isdigit():
-            try:
-                result = eval_expression(question)
-                await message.reply(f"ผลลัพธ์ของ {question} คือ {result}")
-            except Exception as e:
-                await message.reply(f"เกิดข้อผิดพลาดในการคำนวณ: {e}")
-            return
-
-        try:
-            typing_message = await message.reply("กำลังพิม")
-
-            for _ in range(3):
-                await typing_message.edit(content="กำลังพิม.")
-                await asyncio.sleep(0.25)
-                await typing_message.edit(content="กำลังพิม..")
-                await asyncio.sleep(0.25)
-                await typing_message.edit(content="กำลังพิม...")
-                await asyncio.sleep(0.25)
-
-            response = await get_gemini_response(question, conversation_history)
-
-            if response is not None:
-                response = response.replace('Gemini', 'kit')
-                response = response.replace('Google', 'DEV')
-                response = response.replace('ฉัน', 'ผม')
-                response = response.replace('ค่ะ', 'ครับ')
-                response = response.replace('คะ', 'ครับ')
-
-                if response:
-                    if len(response) > 2000:
-                        file_name = f"response_{message.author.id}.txt"
-                        with open(file_name, 'w', encoding='utf-8') as file:
-                            file.write(response)
-                        with open(file_name, 'rb') as file:
-                            await message.reply("ข้อความยาวเกินไป. ส่งไฟล์แทน.", file=discord.File(file, file_name))
-                    else:
-                        await typing_message.edit(content=response)
-
-        except Exception as e:
-            print(f"Error in chatbot room: {e}")
-            await message.channel.send("เกิดข้อผิดพลาดในระบบของเรา. กรุณาลองใหม่อีกครั้ง.")
-
-
+# Run the bot
 keep_alive()
 client.run(os.getenv('Token'))
