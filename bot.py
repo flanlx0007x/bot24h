@@ -9,7 +9,7 @@ import string
 from PIL import Image
 from discord.ext import commands, tasks
 import google.generativeai as genai
-from sever import keep_alive
+from server import keep_alive  # Ensure the server module is available
 
 # Configure API key
 genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
@@ -199,7 +199,7 @@ async def on_message(message):
             # Clean up: Delete temporary image
             os.remove(temp_image_path)
         else:
-            if is_math_question(question) and question.strip().isdigit():
+            if is_math_question(question):
                 try:
                     result = eval_expression(question)
                     await message.reply(f"ผลลัพธ์ของ {question} คือ {result}")
