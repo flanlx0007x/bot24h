@@ -9,8 +9,7 @@ from discord.ext import commands
 import requests
 import time
 from google.api_core.exceptions import InternalServerError
-from sever import keep_alive
-
+from server import keep_alive
 last_message_time = 0 
 genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 chatbot_rooms = {}
@@ -173,7 +172,7 @@ async def on_message(message):
     current_time = time.time()
 
     if current_time - last_message_time < 1: 
-        await message.channel.send("พี่ไอรินไม่ทันตอบให้สามารถโพสต์คำถามอีกครั้งในภายหลังนะ")
+        await message.channel.reply("พี่ไอรินไม่ทันตอบให้สามารถโพสต์คำถามอีกครั้งในภายหลังนะ")
         return
     last_message_time = current_time
 
@@ -182,17 +181,17 @@ async def on_message(message):
         write_history(user_id, INITIAL_HISTORY)
         async with message.channel.typing():
             await asyncio.sleep(0.5)
-        await message.channel.send("พี่ไอรินไม่อยากลืมเราไปเลยแต่ถ้าน้องลบก็ขอให้น้องโชคดีน้าาา🥺")
+        await message.reply("พี่ไอรินไม่อยากลืมเราไปเลยแต่ถ้าน้องลบก็ขอให้น้องโชคดีน้าาา🥺")
         return
     elif content == "!backup":  
         if restore_backup(user_id):
             async with message.channel.typing():
                 await asyncio.sleep(0.5)
-            await message.channel.send("ขอบคุณที่เอาความทรงจำพี่ไอรินกลับน้าา")
+            await message.reply("ขอบคุณที่เอาความทรงจำพี่ไอรินกลับน้าา")
         else:
             async with message.channel.typing():
                 await asyncio.sleep(0.5)
-            await message.channel.send("ขอโทษที่พี่ไอรินหาความทรงจำเก่าของพี่ไม่เจออ่าา เซิฟเวอร์ไม่เซฟให้พี่พี่จะงอนเซิฟเวอร์และผู้พัฒนาพี่5นาทีo(≧口≦)o")
+            await message.reply("ขอโทษที่พี่ไอรินหาความทรงจำเก่าของพี่ไม่เจออ่าา เซิฟเวอร์ไม่เซฟให้พี่พี่จะงอนเซิฟเวอร์และผู้พัฒนาพี่5นาทีo(≧口≦)o")
         return
     elif message.content.startswith('!set_chat'): 
         server_id = str(message.guild.id)
@@ -202,7 +201,7 @@ async def on_message(message):
         with open('chatbot_rooms.json', 'w') as file:
             json.dump(chatbot_rooms, file)
 
-        await message.channel.send(f'บอทได้กำหนดให้ตอบกลับในห้องนี้เท่านั้น: {message.channel.mention}')
+        await message.reply(f'บอทได้กำหนดให้ตอบกลับในห้องนี้เท่านั้น: {message.channel.mention}')
         return
 
     mentioned_users = find_mentioned_users(message.content)
@@ -231,7 +230,7 @@ async def on_message(message):
                             response_text = await process_image(question, filename, history, chat_session)
                             os.remove(filename)
                             for part in split_message(response_text):
-                                await message.channel.send(part)
+                                await message.reply(part)
 
                         try:
                             print(f"Deleted image: {filename}")
@@ -239,21 +238,21 @@ async def on_message(message):
                             print(f"Error deleting image: {e}")
 
                     else:
-                        await message.channel.send("ขอโทษนะคะ พี่ไอรินดาวน์โหลดรูปภาพไม่สำเร็จค่ะ 😔")
+                        await message.reply("ขอโทษนะคะ พี่ไอรินดาวน์โหลดรูปภาพไม่สำเร็จค่ะ 😔")
         elif message.content.strip(): 
             history.append({"IDuser": str(user_id), "role": "user", "parts": [message.content]})
             async with message.channel.typing():
                 response = chat_session.send_message(message.content)
                 for part in split_message(response.text):
-                    await message.channel.send(part)
+                    await message.reply(part)
 
             history.append({"IDuser": str(user_id), "role": "model", "parts": [response.text]})
         else:
-            await message.channel.send("กรุณาใส่ข้อความที่ไม่ว่างเปล่าก่อนจะส่งได้นะคะ")
+            await message.reply("กรุณาใส่ข้อความที่ไม่ว่างเปล่าก่อนจะส่งได้นะคะ")
 
         write_history(user_id, history)
     except Exception as e:
-        await message.channel.send("โปรลองใหม่อีกทีละทางเซิฟเวอร์ของพี่ไอรินมีปัญหาอยู่นะคะ (ขออภัยในความไม่สดวก)")
+        await message.reply("โปรลองใหม่อีกทีละทางเซิฟเวอร์ของพี่ไอรินมีปัญหาอยู่นะคะ (ขออภัยในความไม่สดวก)")
         print(f"Error: {e}")
 keep_alive()
 client.run(os.environ["Token"])
