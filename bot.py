@@ -9,7 +9,9 @@ from discord.ext import commands
 import requests
 import time
 from google.api_core.exceptions import InternalServerError
-from sever import keep_alive
+from server import keep_alive
+import google.api_core.exceptions
+
 last_message_time = 0 
 genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 chatbot_rooms = {}
@@ -251,8 +253,18 @@ async def on_message(message):
             await message.reply("กรุณาใส่ข้อความที่ไม่ว่างเปล่าก่อนจะส่งได้นะคะ")
 
         write_history(user_id, history)
+    except google.api_core.exceptions.InternalServerError:
+        await message.channel.send("ขอโทษค่ะ มีข้อผิดพลาดเกิดขึ้นจากทางเซิร์ฟเวอร์ กรุณาลองอีกครั้งในภายหลังค่ะ")
+    except google.api_core.exceptions.QuotaExceeded:
+        await message.channel.send("โควต้าการใช้งานเกินแล้วค่ะ โปรดรออีกสักพักแล้วลองใหม่อีกครั้งค่ะ")
+    except google.api_core.exceptions.ServiceUnavailable:
+        await message.channel.send("ขอโทษค่ะ บริการไม่พร้อมใช้งานในขณะนี้ กรุณาลองอีกครั้งในภายหลังค่ะ")
+    except google.api_core.exceptions.InvalidArgument:
+        await message.channel.send("ขอโทษค่ะ คำขอของคุณไม่ถูกต้อง กรุณาตรวจสอบและลองอีกครั้งค่ะ")
+    except google.api_core.exceptions.PermissionDenied:
+        await message.channel.send("ขอโทษค่ะ คุณไม่มีสิทธิ์เข้าถึงทรัพยากรนี้ค่ะ กรุณาตรวจสอบสิทธิ์ของคุณค่ะ")
     except Exception as e:
-        await message.reply("โปรลองใหม่อีกทีละทางเซิฟเวอร์ของพี่ไอรินมีปัญหาอยู่นะคะ (ขออภัยในความไม่สดวก)")
+        await message.channel.send("โปรลองใหม่อีกทีละทางเซิฟเวอร์ของพี่ไอรินมีปัญหาอยู่นะคะ (ขออภัยในความไม่สะดวก)")
         print(f"Error: {e}")
 keep_alive()
 client.run(os.environ["Token"])
