@@ -9,7 +9,7 @@ from discord.ext import commands
 import requests
 import time
 from google.api_core.exceptions import InternalServerError
-from server import keep_alive
+from sever.py import keep_alive
 import google.api_core.exceptions
 
 last_message_time = 0 
