@@ -157,56 +157,6 @@ def split_message(message):
         message = message[split_index:]
     parts.append(message)
     return parts
-@client.command()
-async def host(ctx, token: str):
-    """ใช้ Token ใหม่สำหรับ Login"""
-    await ctx.send("กำลังเปลี่ยนบอท...")
-
-    # ลบข้อความที่มี Token เพื่อป้องกันการหลุด
-    await ctx.message.delete()
-
-    # แจ้งเตือนผู้ใช้ว่ากำลังเปลี่ยนบอท
-    await ctx.send("กำลังเปลี่ยนบอท กรุณารอ...")
-
-    # ปิดการทำงานของบอทเก่า
-    await bot.close()
-
-    # สร้างบอทใหม่และทำการ Login ด้วย Token ใหม่
-    new_bot = commands.Bot(command_prefix='!', intents=intents)
-
-    @client.event
-    async def on_ready():
-        print(f'We have logged in as {new_bot.user}')
-
-    @client.event
-    async def on_message(message):
-        if message.author == new_bot.user:
-            return
-
-        if 'เช็คชื่อ' in message.content:
-            embed = discord.Embed(title="เช็คชื่อเรียบร้อยแล้ว", color=0x800080)  # สีม่วง
-            
-            # อัปโหลดไฟล์ภาพหลักจากเครื่อง
-            file_image = discord.File("png.png", filename="image.png")
-            
-            # อัปโหลดไฟล์ภาพเล็กจากเครื่อง
-            file_thumbnail = discord.File("IMG_0239.jpg", filename="thumbnail.jpg")
-            
-            # ตั้งค่า URL สำหรับภาพใหญ่และภาพเล็ก
-            embed.set_image(url="attachment://image.png")
-            embed.set_thumbnail(url="attachment://thumbnail.jpg")
-
-            # ส่ง Embed และไฟล์ภาพในคำสั่งเดียวกัน
-            bot_message = await message.channel.send(content=f"{message.author.mention}", embed=embed, files=[file_image, file_thumbnail])
-            
-            # เพิ่มอีโมจิเฉพาะที่เป็น animated emoji
-            await bot_message.add_reaction('<a:cs5:1215191195559395348>')
-
-        # ทำงานกับคำสั่งที่ไม่ใช่ของบอท
-        await new_bot.process_commands(message)
-
-    # ทำการ Login ด้วย Token ใหม่
-    await new_bot.start(token)
 @client.event
 async def on_message(message):
     global last_message_time
