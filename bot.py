@@ -8,7 +8,6 @@ import google.generativeai as genai
 from discord.ext import commands
 import requests
 import time
-from google.api_core.exceptions import InternalServerError
 from sever import keep_alive
 
 
