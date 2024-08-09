@@ -8,7 +8,7 @@ import google.generativeai as genai
 from discord.ext import commands
 import requests
 import time
-from server import keep_alive
+from sever import keep_alive
 
 last_message_time = 0 
 genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
