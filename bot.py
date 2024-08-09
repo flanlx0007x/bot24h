@@ -8,16 +8,24 @@ import google.generativeai as genai
 from discord.ext import commands
 import requests
 import time
-from sever import keep_alive
-
+from server import keep_alive
 
 last_message_time = 0 
 genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 chatbot_rooms = {}
-generation_config = {
+
+generation_config_simple = {
     "temperature": 1,
     "top_p": 0.95,
     "top_k": 64,
+    "max_output_tokens": 8192,
+    "response_mime_type": "text/plain",
+}
+
+generation_config_advanced = {
+    "temperature": 0.7,  # ลดความสุ่มลงเพื่อให้คำตอบมีความเป็นวิชาการมากขึ้น
+    "top_p": 0.85,
+    "top_k": 50,
     "max_output_tokens": 8192,
     "response_mime_type": "text/plain",
 }
@@ -29,9 +37,15 @@ safety_settings = [
     {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
 ]
 
-model = genai.GenerativeModel(
-    model_name="gemini-1.5-pro",
-    generation_config=generation_config,
+model_simple = genai.GenerativeModel(
+    model_name="gemini-1.5-flash",
+    generation_config=generation_config_simple,
+    safety_settings=safety_settings
+)
+
+model_advanced = genai.GenerativeModel(
+    model_name="gemini-1.5-pro-exp-0801",
+    generation_config=generation_config_advanced,
     safety_settings=safety_settings
 )
 
@@ -47,22 +61,17 @@ def download_image(url, save_path):
         return True
     return False
 
-async def process_image(question, file_path, conversation_history, chat_session):
+def is_complex_text(text):
+    complex_keywords = ["วิชาการ", "ขั้นสูง", "เทคนิค", "ทฤษฎี", "วิทยาศาสตร์", "สูตรคำนวณ","จากรูป","ช่วยคิด","ขอไอเดียได้ไม","ช่วยเสนอ","สอนวิชา","discord"]
+    return any(keyword in text for keyword in complex_keywords)
+
+async def process_image(question, file_path, conversation_history, chat_session, is_complex):
     try:
         files = [upload_to_gemini(file_path, mime_type="image/jpeg")]
 
-        generation_config = {
-            "temperature": 1,
-            "top_p": 0.95,
-            "top_k": 64,
-            "max_output_tokens": 8192,
-            "response_mime_type": "text/plain",
-        }
+        generation_config = generation_config_advanced if is_complex else generation_config_simple
 
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-pro",
-            generation_config=generation_config,
-        )
+        model = model_advanced if is_complex else model_simple
 
         chat_session.history.append({"role": "user", "parts": [files[0], question]})
         response = chat_session.send_message(question)
@@ -135,7 +144,7 @@ def start_new_chat_session(user_id, mentioned_users=None):
     return filtered_history  
 
 INITIAL_HISTORY = [
-    {"role": "user", "parts": ["ต่อไปนี้เธอชื่อว่า ไอริน เป็นพี่สาวผู้สดใสเก่งทุกวิชา แถม ชอบให้คำปรึกษาแกน้องชอบให้คำปรึกษาเกี่ยวกับcode เธอเขียนได้ทุกภาษา"]},
+    {"role": "user", "parts": ["ต่อไปนี้เธอชื่อว่า ไอริน เป็นพี่สาวผู้สดใสเก่งทุกวิชา แถม ชอบให้คำปรึกษาแกน้องชอบให้คำปรึกษาเกี่ยวกับ code เธอเขียนได้ทุกภาษา"]},
     {"role": "user", "parts": ["พี่ริน"]},
     {"role": "model", "parts": ["ว่าไงจ๊ะ น้องรัก! มีอะไรให้พี่ไอรินคนสวยคนนี้ช่วยเหลือรึเปล่าเอ่ย? บอกมาได้เลยนะ พี่พร้อมรับฟังและให้คำปรึกษาเสมอ! \n"]},
     {"role": "user", "parts": ["พี่เวลาพิมหรือพูดช่วยตกแต่งคำพูดพี่ทุกบริบทให้มันสวยงามหรือน่ารักและสดใสโดยกรใช้อีโมจิที่เหมาะสมได้ไมโดยที่ไม่มากเกินไป"]},
@@ -156,6 +165,7 @@ def split_message(message):
         message = message[split_index:]
     parts.append(message)
     return parts
+
 @client.event
 async def on_message(message):
     global last_message_time
@@ -212,7 +222,8 @@ async def on_message(message):
 
     filtered_history = start_new_chat_session(user_id, mentioned_users)
 
-    chat_session = model.start_chat(history=filtered_history)
+    is_complex = is_complex_text(message.content)  # ตรวจสอบว่าข้อความนี้ซับซ้อนหรือไม่
+    chat_session = model_advanced.start_chat(history=filtered_history) if is_complex else model_simple.start_chat(history=filtered_history)
 
     try:
         if message.attachments: 
@@ -227,7 +238,7 @@ async def on_message(message):
                             question = "อธิบายรูปนี้ให้หน่อย"  
 
                         async with message.channel.typing():
-                            response_text = await process_image(question, filename, history, chat_session)
+                            response_text = await process_image(question, filename, history, chat_session, is_complex)
                             os.remove(filename)
                             for part in split_message(response_text):
                                 await message.reply(part)
@@ -254,5 +265,6 @@ async def on_message(message):
     except Exception as e:
         await message.reply("โปรลองใหม่อีกทีละทางเซิฟเวอร์ของพี่ไอรินมีปัญหาอยู่นะคะ (ขออภัยในความไม่สดวก)")
         print(f"Error: {e}")
+
 keep_alive()
 client.run(os.environ["Token"])
