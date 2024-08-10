@@ -10,7 +10,6 @@ import requests
 import time
 from sever import keep_alive
 
-# การตั้งค่าคีย์ API และโมเดล
 genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 
 generation_config_simple = {
@@ -48,7 +47,6 @@ model_advanced = genai.GenerativeModel(
     safety_settings=safety_settings
 )
 
-# ฟังก์ชันการจัดการไฟล์
 def upload_to_gemini(path, mime_type=None):
     file = genai.upload_file(path, mime_type=mime_type)
     return file
@@ -61,12 +59,10 @@ def download_image(url, save_path):
         return True
     return False
 
-# ฟังก์ชันการตรวจสอบข้อความซับซ้อน
 def is_complex_text(text):
     complex_keywords = ["วิชาการ", "ขั้นสูง", "เทคนิค", "ทฤษฎี", "วิทยาศาสตร์", "สูตรคำนวณ", "จากรูป", "ช่วยคิด", "ขอไอเดียได้ไม", "ช่วยเสนอ", "สอนวิชา", "discord"]
     return any(keyword in text for keyword in complex_keywords)
 
-# ฟังก์ชันการจัดการประวัติ
 def get_user_history_filename(user_id):
     return f'history_user_{user_id}.json'
 
@@ -136,7 +132,6 @@ INITIAL_HISTORY = [
     {"role": "model", "parts": ["ได้เลยจ้า น้องรัก! 💖 พี่ไอรินจะพยายามตกแต่งคำพูดทุกประโยคให้สวยงาม น่ารัก สดใส ✨ และใช้อีโมจิประกอบให้พอเหมาะ ไม่มากเกินไป 🤏 เพื่อให้ดูน่ารัก อ่านง่าย สบายตา 💖 แบบนี้ถูกใจน้องรึเปล่าเอ่ย? 🥰 \n"]}
 ]
 
-# ฟังก์ชันการแบ่งข้อความ
 def split_message(message):
     parts = []
     while len(message) > 2000:
@@ -148,7 +143,6 @@ def split_message(message):
     parts.append(message)
     return parts
 
-# ฟังก์ชันการจัดการห้อง
 def load_room_set():
     if os.path.exists('room_set.json'):
         with open('room_set.json', 'r') as file:
@@ -180,7 +174,6 @@ async def on_message(message):
 
     content = message.content.lower()
 
-    # คำสั่งตั้งค่าแชท
     if content.startswith('!set_chat'):
         server_id = str(message.guild.id)
         channel_id = str(message.channel.id)
@@ -190,7 +183,6 @@ async def on_message(message):
         await message.reply(f'บอทได้กำหนดให้ตอบกลับในห้องนี้เท่านั้น: {message.channel.mention}')
         return
 
-    # ตรวจสอบห้องที่ตั้งค่า
     server_id = str(message.guild.id)
     if server_id in room_set:
         if message.channel.id != int(room_set[server_id]):
@@ -201,20 +193,17 @@ async def on_message(message):
     user_id = message.author.id
     current_time = time.time()
 
-    # การป้องกันไม่ให้บอทตอบกลับเร็วเกินไป
     if current_time - last_message_time < 1:
         await message.channel.reply("พี่ไอรินไม่ทันตอบให้สามารถโพสต์คำถามอีกครั้งในภายหลังนะ")
         return
     last_message_time = current_time
 
-    # คำสั่ง reset
     if content == "!reset":
         backup_history(user_id)
         write_history(user_id, INITIAL_HISTORY)
         await message.reply("พี่ไอรินไม่อยากลืมเราไปเลยแต่ถ้าน้องลบก็ขอให้น้องโชคดีน้าาา🥺")
         return
 
-    # คำสั่ง backup
     elif content == "!backup":
         if restore_backup(user_id):
             await message.reply("ขอบคุณที่เอาความทรงจำพี่ไอรินกลับน้าา")
@@ -222,13 +211,11 @@ async def on_message(message):
             await message.reply("ขอโทษที่พี่ไอรินหาความทรงจำเก่าของพี่ไม่เจออ่าา เซิฟเวอร์ไม่เซฟให้พี่พี่จะงอนเซิฟเวอร์และผู้พัฒนาพี่5นาทีo(≧口≦)o")
         return
 
-    # ค้นหาผู้ใช้ที่ถูกอ้างอิง
     mentioned_users = find_mentioned_users(message.content)
 
-    # เริ่มต้นการสนทนาใหม่
     filtered_history = start_new_chat_session(user_id, mentioned_users)
 
-    is_complex = is_complex_text(message.content)  # ตรวจสอบว่าข้อความนี้ซับซ้อนหรือไม่
+    is_complex = is_complex_text(message.content)  
     chat_session = model_advanced.start_chat(history=filtered_history) if is_complex else model_simple.start_chat(history=filtered_history)
 
     try:
@@ -264,12 +251,12 @@ async def on_message(message):
                 sent_message = await message.channel.send("กำลังพิมพ์...")
 
                 response_text = response.text
-                chunk_size = 100  # ขนาดของช่วงข้อความ
+                chunk_size = 100  
                 chunks = [response_text[i:i + chunk_size] for i in range(0, len(response_text), chunk_size)]
 
                 for chunk in chunks:
                     full_text += chunk
-                    await asyncio.sleep(0.5)  # ปรับเวลาตามที่ต้องการ
+                    await asyncio.sleep(0.5)  
                     await sent_message.edit(content=full_text)
 
                 await sent_message.edit(content=full_text)
