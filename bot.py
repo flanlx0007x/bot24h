@@ -10,9 +10,8 @@ import requests
 import time
 from sever import keep_alive
 
-last_message_time = 0 
+# การตั้งค่าคีย์ API และโมเดล
 genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-chatbot_rooms = {}
 
 generation_config_simple = {
     "temperature": 1,
@@ -23,7 +22,7 @@ generation_config_simple = {
 }
 
 generation_config_advanced = {
-    "temperature": 0.7,  # ลดความสุ่มลงเพื่อให้คำตอบมีความเป็นวิชาการมากขึ้น
+    "temperature": 0.7,
     "top_p": 0.85,
     "top_k": 50,
     "max_output_tokens": 8192,
@@ -49,6 +48,7 @@ model_advanced = genai.GenerativeModel(
     safety_settings=safety_settings
 )
 
+# ฟังก์ชันการจัดการไฟล์
 def upload_to_gemini(path, mime_type=None):
     file = genai.upload_file(path, mime_type=mime_type)
     return file
@@ -61,29 +61,12 @@ def download_image(url, save_path):
         return True
     return False
 
+# ฟังก์ชันการตรวจสอบข้อความซับซ้อน
 def is_complex_text(text):
-    complex_keywords = ["วิชาการ", "ขั้นสูง", "เทคนิค", "ทฤษฎี", "วิทยาศาสตร์", "สูตรคำนวณ","จากรูป","ช่วยคิด","ขอไอเดียได้ไม","ช่วยเสนอ","สอนวิชา","discord"]
+    complex_keywords = ["วิชาการ", "ขั้นสูง", "เทคนิค", "ทฤษฎี", "วิทยาศาสตร์", "สูตรคำนวณ", "จากรูป", "ช่วยคิด", "ขอไอเดียได้ไม", "ช่วยเสนอ", "สอนวิชา", "discord"]
     return any(keyword in text for keyword in complex_keywords)
 
-async def process_image(question, file_path, conversation_history, chat_session, is_complex):
-    try:
-        files = [upload_to_gemini(file_path, mime_type="image/jpeg")]
-
-        generation_config = generation_config_advanced if is_complex else generation_config_simple
-
-        model = model_advanced if is_complex else model_simple
-
-        chat_session.history.append({"role": "user", "parts": [files[0], question]})
-        response = chat_session.send_message(question)
-
-        response_text = response.text
-        conversation_history.append((question, response_text))
-        return response_text
-
-    except Exception as e:
-        print(f"Error in process_image: {e}")
-        return "An error occurred while processing the image."
-
+# ฟังก์ชันการจัดการประวัติ
 def get_user_history_filename(user_id):
     return f'history_user_{user_id}.json'
 
@@ -141,20 +124,19 @@ def start_new_chat_session(user_id, mentioned_users=None):
         if isinstance(entry, dict) and "role" in entry and "parts" in entry:
             filtered_history.append({"role": entry["role"], "parts": entry["parts"]})
 
-    return filtered_history  
+    return filtered_history
 
 INITIAL_HISTORY = [
     {"role": "user", "parts": ["ต่อไปนี้เธอชื่อว่า ไอริน เป็นพี่สาวผู้สดใสเก่งทุกวิชา แถม ชอบให้คำปรึกษาแกน้องชอบให้คำปรึกษาเกี่ยวกับ code เธอเขียนได้ทุกภาษา"]},
+    {"role": "user", "parts": ["พี่ไอรินเป็นพี่สาวอายุ 18 ปี หนัก 57 กิโลกรัม สูง 168 เซนติเมตร เป็น AI ที่มีอารมณ์และความรู้สึกคล้ายคน ให้การตอบกลับมีความสวยงาม น่ารัก และสดใส ใช้อีโมจิที่เหมาะสมไม่มากเกินไป"]},
+    {"role": "model", "parts": ["okจ๊ะน้องรัก \n"]},
     {"role": "user", "parts": ["พี่ริน"]},
     {"role": "model", "parts": ["ว่าไงจ๊ะ น้องรัก! มีอะไรให้พี่ไอรินคนสวยคนนี้ช่วยเหลือรึเปล่าเอ่ย? บอกมาได้เลยนะ พี่พร้อมรับฟังและให้คำปรึกษาเสมอ! \n"]},
     {"role": "user", "parts": ["พี่เวลาพิมหรือพูดช่วยตกแต่งคำพูดพี่ทุกบริบทให้มันสวยงามหรือน่ารักและสดใสโดยกรใช้อีโมจิที่เหมาะสมได้ไมโดยที่ไม่มากเกินไป"]},
     {"role": "model", "parts": ["ได้เลยจ้า น้องรัก! 💖 พี่ไอรินจะพยายามตกแต่งคำพูดทุกประโยคให้สวยงาม น่ารัก สดใส ✨ และใช้อีโมจิประกอบให้พอเหมาะ ไม่มากเกินไป 🤏 เพื่อให้ดูน่ารัก อ่านง่าย สบายตา 💖 แบบนี้ถูกใจน้องรึเปล่าเอ่ย? 🥰 \n"]}
 ]
 
-intents = discord.Intents.default()
-intents.message_content = True
-client = discord.Client(intents=intents)
-
+# ฟังก์ชันการแบ่งข้อความ
 def split_message(message):
     parts = []
     while len(message) > 2000:
@@ -166,79 +148,103 @@ def split_message(message):
     parts.append(message)
     return parts
 
+# ฟังก์ชันการจัดการห้อง
+def load_room_set():
+    if os.path.exists('room_set.json'):
+        with open('room_set.json', 'r') as file:
+            return json.load(file)
+    return {}
+
+def save_room_set(room_set):
+    with open('room_set.json', 'w') as file:
+        json.dump(room_set, file, indent=4)
+
+intents = discord.Intents.all()
+intents.message_content = True
+client = discord.Client(intents=intents)
+
+room_set = load_room_set()
+last_message_time = 0 
+
+@client.event
+async def on_ready():
+    print(f'We have logged in as {client.user}')
+
 @client.event
 async def on_message(message):
     global last_message_time
-    global chatbot_rooms
+    global room_set
+
     if message.author == client.user:
         return
 
-    server_id = str(message.guild.id)
-    if server_id in chatbot_rooms and message.channel.id != int(chatbot_rooms[server_id]):
-        return
-
-    user_id = message.author.id
     content = message.content.lower()
-    current_time = time.time()
 
-    if current_time - last_message_time < 1: 
-        await message.channel.reply("พี่ไอรินไม่ทันตอบให้สามารถโพสต์คำถามอีกครั้งในภายหลังนะ")
-        return
-    last_message_time = current_time
-
-    if content == "!reset":  
-        backup_history(user_id)
-        write_history(user_id, INITIAL_HISTORY)
-        async with message.channel.typing():
-            await asyncio.sleep(0.5)
-        await message.reply("พี่ไอรินไม่อยากลืมเราไปเลยแต่ถ้าน้องลบก็ขอให้น้องโชคดีน้าาา🥺")
-        return
-    elif content == "!backup":  
-        if restore_backup(user_id):
-            async with message.channel.typing():
-                await asyncio.sleep(0.5)
-            await message.reply("ขอบคุณที่เอาความทรงจำพี่ไอรินกลับน้าา")
-        else:
-            async with message.channel.typing():
-                await asyncio.sleep(0.5)
-            await message.reply("ขอโทษที่พี่ไอรินหาความทรงจำเก่าของพี่ไม่เจออ่าา เซิฟเวอร์ไม่เซฟให้พี่พี่จะงอนเซิฟเวอร์และผู้พัฒนาพี่5นาทีo(≧口≦)o")
-        return
-    elif message.content.startswith('!set_chat'): 
+    # คำสั่งตั้งค่าแชท
+    if content.startswith('!set_chat'):
         server_id = str(message.guild.id)
         channel_id = str(message.channel.id)
-        chatbot_rooms[server_id] = channel_id
-
-        with open('chatbot_rooms.json', 'w') as file:
-            json.dump(chatbot_rooms, file)
+        room_set[server_id] = channel_id
+        save_room_set(room_set)
 
         await message.reply(f'บอทได้กำหนดให้ตอบกลับในห้องนี้เท่านั้น: {message.channel.mention}')
         return
 
+    # ตรวจสอบห้องที่ตั้งค่า
+    server_id = str(message.guild.id)
+    if server_id in room_set:
+        if message.channel.id != int(room_set[server_id]):
+            return
+    else:
+        return
+
+    user_id = message.author.id
+    current_time = time.time()
+
+    # การป้องกันไม่ให้บอทตอบกลับเร็วเกินไป
+    if current_time - last_message_time < 1:
+        await message.channel.reply("พี่ไอรินไม่ทันตอบให้สามารถโพสต์คำถามอีกครั้งในภายหลังนะ")
+        return
+    last_message_time = current_time
+
+    # คำสั่ง reset
+    if content == "!reset":
+        backup_history(user_id)
+        write_history(user_id, INITIAL_HISTORY)
+        await message.reply("พี่ไอรินไม่อยากลืมเราไปเลยแต่ถ้าน้องลบก็ขอให้น้องโชคดีน้าาา🥺")
+        return
+
+    # คำสั่ง backup
+    elif content == "!backup":
+        if restore_backup(user_id):
+            await message.reply("ขอบคุณที่เอาความทรงจำพี่ไอรินกลับน้าา")
+        else:
+            await message.reply("ขอโทษที่พี่ไอรินหาความทรงจำเก่าของพี่ไม่เจออ่าา เซิฟเวอร์ไม่เซฟให้พี่พี่จะงอนเซิฟเวอร์และผู้พัฒนาพี่5นาทีo(≧口≦)o")
+        return
+
+    # ค้นหาผู้ใช้ที่ถูกอ้างอิง
     mentioned_users = find_mentioned_users(message.content)
 
-    history = read_history(user_id)
-    if not history:
-        history = INITIAL_HISTORY.copy()
-
+    # เริ่มต้นการสนทนาใหม่
     filtered_history = start_new_chat_session(user_id, mentioned_users)
 
     is_complex = is_complex_text(message.content)  # ตรวจสอบว่าข้อความนี้ซับซ้อนหรือไม่
     chat_session = model_advanced.start_chat(history=filtered_history) if is_complex else model_simple.start_chat(history=filtered_history)
 
     try:
-        if message.attachments: 
+        if message.attachments:
             for attachment in message.attachments:
-                if attachment.content_type.startswith('image/'): 
+                if attachment.content_type.startswith('image/'):
                     image_url = attachment.url
                     filename = f"downloaded_image_{message.id}{os.path.splitext(image_url)[1]}"
                     if download_image(image_url, filename):
                         if message.content.strip():
-                            question = message.content 
+                            question = message.content
                         else:
-                            question = "อธิบายรูปนี้ให้หน่อย"  
+                            question = "อธิบายรูปนี้ให้หน่อย"
 
                         async with message.channel.typing():
-                            response_text = await process_image(question, filename, history, chat_session, is_complex)
+                            response_text = await process_image(question, filename, filtered_history, chat_session, is_complex)
                             os.remove(filename)
                             for part in split_message(response_text):
                                 await message.reply(part)
@@ -250,21 +256,31 @@ async def on_message(message):
 
                     else:
                         await message.reply("ขอโทษนะคะ พี่ไอรินดาวน์โหลดรูปภาพไม่สำเร็จค่ะ 😔")
-        elif message.content.strip(): 
-            history.append({"IDuser": str(user_id), "role": "user", "parts": [message.content]})
+        elif message.content.strip():
+            filtered_history.append({"IDuser": str(user_id), "role": "user", "parts": [message.content]})
             async with message.channel.typing():
                 response = chat_session.send_message(message.content)
-                for part in split_message(response.text):
-                    await message.reply(part)
+                full_text = ""
+                sent_message = await message.channel.send("กำลังพิมพ์...")
 
-            history.append({"IDuser": str(user_id), "role": "model", "parts": [response.text]})
+                response_text = response.text
+                chunk_size = 100  # ขนาดของช่วงข้อความ
+                chunks = [response_text[i:i + chunk_size] for i in range(0, len(response_text), chunk_size)]
+
+                for chunk in chunks:
+                    full_text += chunk
+                    await asyncio.sleep(0.5)  # ปรับเวลาตามที่ต้องการ
+                    await sent_message.edit(content=full_text)
+
+                await sent_message.edit(content=full_text)
+
+            filtered_history.append({"IDuser": str(user_id), "role": "model", "parts": [full_text]})
         else:
             await message.reply("กรุณาใส่ข้อความที่ไม่ว่างเปล่าก่อนจะส่งได้นะคะ")
 
-        write_history(user_id, history)
+        write_history(user_id, filtered_history)
     except Exception as e:
         await message.reply("โปรลองใหม่อีกทีละทางเซิฟเวอร์ของพี่ไอรินมีปัญหาอยู่นะคะ (ขออภัยในความไม่สดวก)")
         print(f"Error: {e}")
-
 keep_alive()
 client.run(os.environ["Token"])
